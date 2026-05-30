@@ -26,7 +26,10 @@
   .chip.active { background: #1a56db; color: white; border-color: #1a56db; }
   .chip.leave { background: #fff0f0; border-color: #fca5a5; color: #991b1b; }
   .chip.leave.active { background: #dc2626; color: white; border-color: #dc2626; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .btn { width: 100%; padding: 15px; background: #1a56db; color: white; border: none; border-radius: 13px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s; }
+  .btn.clear-btn { background: #64748b; }
+  .btn.clear-btn:active { background: #475569; }
   .btn:active { transform: scale(0.98); background: #1447c0; }
   .btn:disabled { background: #93aee8; cursor: not-allowed; }
   .btn.leave-btn { background: #dc2626; }
@@ -41,20 +44,30 @@
   .leave-banner .emoji { font-size: 40px; margin-bottom: 8px; }
   .leave-banner p { color: #991b1b; font-weight: 600; font-size: 15px; }
   .leave-banner small { color: #b45309; font-size: 13px; }
+  .history-list { display: grid; gap: 8px; }
+  .history-item { border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; background: #f8fafc; font-size: 13px; color: #334155; }
+  .history-item strong { color: #1a202c; }
+  .history-item small { display: block; color: #64748b; margin-top: 3px; }
+  .history-empty { color: #64748b; font-size: 13px; }
+  @media (max-width: 640px) {
+    body { padding: 0.75rem; }
+    .row, .actions { grid-template-columns: 1fr; }
+    .header { border-radius: 12px; }
+  }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-icon">🖥️</div>
+  <div class="header-icon">IT</div>
   <div>
-    <h1>Daily IT — Work Log</h1>
+    <h1>Daily IT - Work Log</h1>
     <p id="today-label"></p>
   </div>
 </div>
 
 <div class="card">
-  <div class="section-label">⚙️ Settings (one time)</div>
+  <div class="section-label">Settings (one time)</div>
   <div class="field">
     <label>Google Script URL</label>
     <input type="url" id="script-url" placeholder="https://script.google.com/macros/s/.../exec" />
@@ -67,12 +80,11 @@
       <option value="Boopathi">Boopathi</option>
     </select>
   </div>
-  <button class="save-btn" onclick="saveSettings()">💾 Save Settings</button>
-  <div class="saved-ok" id="saved-ok">✓ Settings saved!</div>
+  <button class="save-btn" onclick="saveSettings()">Save Settings</button>
+  <div class="saved-ok" id="saved-ok">Settings saved!</div>
 </div>
-
 <div class="card">
-  <div class="section-label">📋 Today's Entry</div>
+  <div class="section-label">Today's Entry</div>
   <div class="row">
     <div class="field">
       <label>Date</label>
@@ -89,7 +101,7 @@
     <div class="chips">
       <span class="chip active" onclick="pickMain(this,'bommsandhara')">Bommsandhara</span>
       <span class="chip" onclick="pickMain(this,'hosur')">Hosur Plant</span>
-      <span class="chip leave" onclick="pickMain(this,'leave')">🏖 Leave</span>
+      <span class="chip leave" onclick="pickMain(this,'leave')">Leave</span>
     </div>
   </div>
 
@@ -131,16 +143,28 @@
   </div>
 
   <div class="leave-banner" id="leave-banner">
-    <div class="emoji">🏖️</div>
+    <div class="emoji">Leave</div>
     <p>Marking today as Leave</p>
     <small>This will add a leave entry to your sheet</small>
   </div>
 </div>
 
-<button class="btn" id="submit-btn" onclick="submitEntry()">
-  ➤ Add to Sheet
-</button>
+<div class="actions">
+  <button class="btn" id="submit-btn" onclick="submitEntry()">
+    Add to Sheet
+  </button>
+  <button class="btn clear-btn" type="button" onclick="clearPage()">
+    Clear Page
+  </button>
+</div>
 <div class="status" id="status-box"></div>
+
+<div class="card">
+  <div class="section-label">Last Submitted</div>
+  <div class="history-list" id="history-list">
+    <div class="history-empty">No entries submitted yet.</div>
+  </div>
+</div>
 
 <script>
   const subOptions = {
@@ -189,13 +213,13 @@
       subField.style.display = 'none';
       entryFields.style.display = 'none';
       leaveBanner.style.display = 'block';
-      submitBtn.textContent = '🏖 Mark as Leave';
+      submitBtn.textContent = 'Mark as Leave';
       submitBtn.className = 'btn leave-btn';
     } else {
       subField.style.display = 'block';
       entryFields.style.display = 'block';
       leaveBanner.style.display = 'none';
-      submitBtn.innerHTML = '➤ Add to Sheet';
+      submitBtn.innerHTML = 'Add to Sheet';
       submitBtn.className = 'btn';
       const opts = subOptions[key];
       const sel = document.getElementById('dept-sub');
@@ -216,16 +240,65 @@
     if(type === 'success') setTimeout(() => el.className = 'status', 5000);
   }
 
+
+  function getDepartmentLabel() {
+    if(mainDept === 'leave') return 'LEAVE';
+    const mainLabel = mainDept === 'bommsandhara' ? 'Bommsandhara' : 'Hosur Plant';
+    const sub = document.getElementById('dept-sub').value || 'No plant selected';
+    return `${mainLabel} - ${sub}`;
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('history-list');
+    const entries = JSON.parse(localStorage.getItem('terait-history') || '[]');
+    if(!entries.length) {
+      list.innerHTML = '<div class="history-empty">No entries submitted yet.</div>';
+      return;
+    }
+    list.innerHTML = entries.map(item => `
+      <div class="history-item">
+        <strong>${item.date}</strong> - ${item.department}
+        <small>${item.user} | ${item.status}</small>
+      </div>
+    `).join('');
+  }
+
+  function saveHistory(item) {
+    const entries = JSON.parse(localStorage.getItem('terait-history') || '[]');
+    entries.unshift(item);
+    localStorage.setItem('terait-history', JSON.stringify(entries.slice(0, 5)));
+    renderHistory();
+  }
+
+  function resetEntryForm() {
+    document.getElementById('entry-date').value = iso;
+    document.getElementById('dept-sub').value = '';
+    document.getElementById('problem').value = '';
+    document.getElementById('solution').value = '';
+    document.getElementById('call-status').value = 'Closed';
+    document.getElementById('closed-date').value = iso;
+    document.getElementById('user-name').value = '';
+
+    const firstChip = document.querySelector('.chips .chip');
+    if(firstChip) pickMain(firstChip, 'bommsandhara');
+  }
+
+  function clearPage() {
+    resetEntryForm();
+    document.getElementById('status-box').className = 'status';
+  }
   async function submitEntry() {
     const stored = localStorage.getItem('terait');
     const url = (stored ? JSON.parse(stored).url : '') || document.getElementById('script-url').value.trim();
-    if(!url) { showStatus('error', '❌ Please save your Script URL in Settings first.'); return; }
+    if(!url) { showStatus('error', 'Please save your Script URL in Settings first.'); return; }
 
     const date = fmtDate(document.getElementById('entry-date').value);
     const user = document.getElementById('user-name').value.trim();
     const sheetName = document.getElementById('saved-name').value || (stored ? JSON.parse(stored).name : '');
+    if(!user) { showStatus('error', 'Please enter User Name.'); return; }
 
     let params;
+    let historyItem;
 
     if(mainDept === 'leave') {
       params = new URLSearchParams({
@@ -236,49 +309,55 @@
         callStatus: 'Leave',
         closedDate: date
       });
+      historyItem = { date, user, department: 'LEAVE', status: 'Leave sent' };
     } else {
       const sub = document.getElementById('dept-sub').value;
-      if(!sub) { showStatus('error', '❌ Please select a Plant.'); return; }
+      if(!sub) { showStatus('error', 'Please select a Plant.'); return; }
       const problem = document.getElementById('problem').value.trim();
       const solution = document.getElementById('solution').value.trim();
-      if(!problem || !solution) { showStatus('error', '❌ Please fill Problem and Solution.'); return; }
+      if(!problem || !solution) { showStatus('error', 'Please fill Problem and Solution.'); return; }
       const mainLabel = mainDept === 'bommsandhara' ? 'Bommsandhara' : 'Hosur Plant';
+      const department = `${mainLabel} - ${sub}`;
+      const callStatus = document.getElementById('call-status').value;
       params = new URLSearchParams({
         date, user, sheetName,
-        department: `${mainLabel} - ${sub}`,
+        department,
         problem, solution,
-        callStatus: document.getElementById('call-status').value,
+        callStatus,
         closedDate: fmtDate(document.getElementById('closed-date').value)
       });
+      historyItem = { date, user, department, status: callStatus };
     }
 
     const btn = document.getElementById('submit-btn');
+    const submittedDept = mainDept;
+    const submitUrl = url + '?' + params.toString();
+
     btn.disabled = true;
-    btn.textContent = '⏳ Submitting...';
+    btn.textContent = 'Sending...';
+    showStatus('success', submittedDept === 'leave' ? 'Leave sent to sheet.' : 'Entry sent to sheet.');
+    saveHistory(historyItem);
+    resetEntryForm();
 
-    try {
-      const res = await fetch(url + '?' + params.toString());
-      const json = await res.json();
-      if(json.status === 'success') {
-        showStatus('success', mainDept === 'leave' ? '✅ Leave marked in your sheet!' : '✅ Entry added to your Google Sheet!');
-        if(mainDept !== 'leave') {
-          document.getElementById('problem').value = '';
-          document.getElementById('solution').value = '';
+    fetch(submitUrl)
+      .then(res => res.json())
+      .then(json => {
+        if(json.status !== 'success') {
+          showStatus('error', 'Error: ' + (json.message || 'Unknown'));
         }
-      } else {
-        showStatus('error', '❌ Error: ' + (json.message || 'Unknown'));
-      }
-    } catch(e) {
-      showStatus('error', '❌ Failed: ' + e.message);
-    }
+      })
+      .catch(e => showStatus('error', 'Failed: ' + e.message));
 
-    btn.disabled = false;
-    if(mainDept === 'leave') {
-      btn.textContent = '🏖 Mark as Leave';
-    } else {
-      btn.innerHTML = '➤ Add to Sheet';
-    }
+    setTimeout(() => {
+      btn.disabled = false;
+      if(mainDept === 'leave') {
+        btn.textContent = 'Mark as Leave';
+      } else {
+        btn.innerHTML = 'Add to Sheet';
+      }
+    }, 1000);
   }
+  renderHistory();
 </script>
 </body>
 </html>
